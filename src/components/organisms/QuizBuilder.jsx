@@ -329,30 +329,11 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
         });
       }
     });
-
-    setNodes(generatedNodes);
+setNodes(generatedNodes);
     setEdges(generatedEdges);
   }, [quiz?.questions, viewMode, selectedQuestionId, setNodes, setEdges]);
 
-  const renderCurrentView = () => {
-    switch (viewMode) {
-      case 'kanban':
-        return <KanbanView 
-          quiz={quiz}
-          selectedQuestionId={selectedQuestionId}
-          onSelectQuestion={setSelectedQuestionId}
-          onDeleteQuestion={deleteQuestion}
-          onAddQuestion={() => setShowQuestionTypes(true)}
-          onBranchingConfig={openBranchingModal}
-        />;
-      case 'mindmap':
-        return <MindmapView 
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-const onNodeClick = useCallback((event, node) => {
+  const onNodeClick = useCallback((event, node) => {
     if (node?.id) {
       try {
         const nodeId = node.id
@@ -368,6 +349,18 @@ const onNodeClick = useCallback((event, node) => {
     }
   }, [])
 
+  const renderCurrentView = () => {
+    switch (viewMode) {
+      case 'kanban':
+        return <KanbanView 
+          quiz={quiz}
+          selectedQuestionId={selectedQuestionId}
+          onSelectQuestion={setSelectedQuestionId}
+          onDeleteQuestion={deleteQuestion}
+          onAddQuestion={() => setShowQuestionTypes(true)}
+          onBranchingConfig={openBranchingModal}
+        />;
+      case 'mindmap':
         return <MindmapView 
           nodes={nodes}
           edges={edges}
@@ -491,18 +484,19 @@ const onNodeClick = useCallback((event, node) => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-<BranchingModal
-              question={quiz?.questions?.find(q => 
-                q && ((q.id || q.Id) === branchingQuestionId)
-              ) || null}
-              allQuestions={quiz?.questions || []}
-              onSave={(questionId, branchingRules) => updateBranching(questionId, branchingRules)}
-              onClose={() => setBranchingQuestionId(null)}
-              isOpen={!!branchingQuestionId}
-            />
-          )}
-        </AnimatePresence>
+className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            >
+              <BranchingModal
+                question={quiz?.questions?.find(q => 
+                  q && ((q.id || q.Id) === branchingQuestionId)
+                ) || null}
+                allQuestions={quiz?.questions || []}
+                onSave={(questionId, branchingRules) => updateBranching(questionId, branchingRules)}
+                onClose={() => setBranchingQuestionId(null)}
+                isOpen={!!branchingQuestionId}
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
