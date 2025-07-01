@@ -922,7 +922,7 @@ case 'mindmap':
       </AnimatePresence>
 
       {/* Branching Configuration Modal */}
-      <AnimatePresence>
+<AnimatePresence>
         {showBranchingModal && branchingQuestionId && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -936,7 +936,7 @@ case 'mindmap':
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
             >
               <BranchingModal
                 question={quiz?.questions?.find(q => 
@@ -950,6 +950,7 @@ className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto
                 }}
               />
             </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
