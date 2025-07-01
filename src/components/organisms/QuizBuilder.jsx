@@ -41,23 +41,26 @@ const loadQuiz = async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await quizService.getById(parseInt(quizId))
       
-      if (!data) {
-        throw new Error('Quiz not found')
-      }
-      
-      setQuiz(data)
-      if (data.questions?.length > 0) {
-        const firstQuestion = data.questions[0]
-const questionId = firstQuestion?.Id || firstQuestion?.id
-        if (questionId && (typeof questionId === 'string' || typeof questionId === 'number')) {
-          setSelectedQuestionId(questionId)
+      if (quizId && quizId !== 'new') {
+        const data = await quizService.getById(quizId)
+        if (data) {
+          const firstQuestion = data.questions?.[0]
+          const questionId = firstQuestion?.id || firstQuestion?.Id
+          if (questionId && (typeof questionId === 'string' || typeof questionId === 'number')) {
+            setSelectedQuestionId(questionId)
+          }
+          setQuiz(data)
+        } else {
+          throw new Error('Quiz not found')
         }
+      } else {
+        await createNewQuiz()
       }
-    } catch (err) {
-      setError(err.message || 'Failed to load quiz')
-      console.error('Error loading quiz:', err)
+    } catch (error) {
+      console.error('Failed to load quiz:', error)
+      toast.error('Failed to load quiz')
+      setError('Failed to load quiz')
     } finally {
       setLoading(false)
     }
@@ -86,20 +89,24 @@ const questionId = firstQuestion?.Id || firstQuestion?.id
       setLoading(false)
     }
   }
-
-  const updateQuiz = async (updates) => {
+const updateQuiz = useCallback(async (updates) => {
+    if (!quiz) return
+    
     try {
       const updatedQuiz = { ...quiz, ...updates }
-await quizService.update(quiz.id || quiz.Id, updatedQuiz)
+      const quizId = quiz.id || quiz.Id
+      if (!quizId) {
+        throw new Error('Quiz ID is missing')
+      }
+      await quizService.update(quizId, updatedQuiz)
       setQuiz(updatedQuiz)
-      toast.success('Quiz updated successfully')
-    } catch (err) {
-      toast.error('Failed to update quiz')
-      console.error('Error updating quiz:', err)
+    } catch (error) {
+      console.error('Failed to update quiz:', error)
+      toast.error('Failed to save changes')
     }
-  }
+  }, [quiz])
 
-const addQuestion = async (type) => {
+const addQuestion = useCallback(async (type) => {
     try {
       if (!quiz || !quiz.questions) {
         toast.error('Quiz data not available')
@@ -119,19 +126,19 @@ const addQuestion = async (type) => {
         id: `q_${Date.now()}`
       }
 
-      const updatedQuestions = [...quiz.questions, newQuestion]
+      const updatedQuestions = [...(quiz.questions || []), newQuestion]
+      
       await updateQuiz({ questions: updatedQuestions })
       
       // Select the new question
       setSelectedQuestionId(newQuestion.id)
-      setShowQuestionTypes(false)
-    } catch (err) {
+    } catch (error) {
+      console.error('Failed to add question:', error)
       toast.error('Failed to add question')
-      console.error('Error adding question:', err)
     }
-  }
+  }, [quiz, updateQuiz])
 
-  const updateQuestion = async (questionId, updates) => {
+const updateQuestion = async (questionId, updates) => {
     try {
       setLoading(true)
       
@@ -143,16 +150,15 @@ const addQuestion = async (type) => {
         const qId = q?.Id || q?.id
         return qId === questionId ? { ...q, ...updates } : q
       })
+      
       const updatedQuiz = { ...quiz, questions: updatedQuestions }
-try {
-        await quizService.update(quiz.id || quiz.Id, updatedQuiz)
-      } catch (error) {
-        console.error('Failed to update quiz:', error)
-        toast.error('Failed to save changes')
-        throw error
+      
+      const quizId = quiz.id || quiz.Id
+      if (!quizId) {
+        throw new Error('Quiz ID is missing')
       }
+      await quizService.update(quizId, updatedQuiz)
       setQuiz(updatedQuiz)
-      toast.success('Question updated successfully')
     } catch (err) {
       toast.error('Failed to update question')
       console.error('Error updating question:', err)
@@ -172,17 +178,17 @@ const deleteQuestion = async (questionId) => {
       })
       await updateQuiz({ questions: updatedQuestions })
       
-      if (selectedQuestionId === questionId) {
-        if (updatedQuestions.length > 0) {
-          const firstQuestion = updatedQuestions[0]
-          const firstId = firstQuestion?.Id || firstQuestion?.id
+      if (updatedQuestions?.length > 0) {
+        const firstQuestion = updatedQuestions[0]
+        if (firstQuestion) {
+          const firstId = firstQuestion.id || firstQuestion.Id
           setSelectedQuestionId(firstId || null)
         } else {
           setSelectedQuestionId(null)
         }
+      } else {
+        setSelectedQuestionId(null)
       }
-      
-      toast.success('Question deleted successfully')
     } catch (err) {
       setError('Failed to delete question')
       console.error('Error deleting question:', err)
@@ -238,7 +244,7 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
     }
 
     const generatedNodes = quiz.questions.map((question, index) => {
-if (!question) {
+      if (!question) {
         console.warn('Invalid question data:', question)
         return null
       }
@@ -273,8 +279,8 @@ if (!question) {
           color: selectedQuestionId === questionId ? '#ffffff' : '#1e293b',
           border: '2px solid #e2e8f0',
           borderRadius: '8px',
-          width: 200,
-          fontSize: '12px'
+          padding: '12px',
+          minWidth: '200px'
         }
       }
     }).filter(Boolean)
@@ -282,38 +288,42 @@ if (!question) {
     const generatedEdges = [];
     quiz.questions.forEach((question, index) => {
       const questionId = question?.Id || question?.id
-if (!questionId && questionId !== 0) return
+      if (!questionId && questionId !== 0) return
 
       if (index < (quiz?.questions?.length || 0) - 1) {
         const nextQuestion = quiz.questions[index + 1]
-        if (!nextQuestion) return
-        
-        const nextQuestionId = nextQuestion.Id || nextQuestion.id
-        
-        if (nextQuestionId || nextQuestionId === 0) {
-          generatedEdges.push({
-            id: `e${questionId}-${nextQuestionId}`,
-            source: String(questionId),
-            target: nextQuestionId.toString(),
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-            },
-          });
-        }
-      }
-// Add branching edges
-      if (question.branching && typeof question.branching === 'object') {
-        Object.entries(question.branching).forEach(([optionId, targetId]) => {
-          if (targetId && targetId !== 'complete' && targetId !== questionId && optionId) {
+        if (nextQuestion) {
+          const nextQuestionId = nextQuestion.id || nextQuestion.Id
+          if (nextQuestionId) {
             generatedEdges.push({
-              id: `e${questionId}-${targetId}-branch`,
+              id: `${questionId}-${nextQuestionId}`,
               source: String(questionId),
-              target: String(targetId),
+              target: String(nextQuestionId),
               markerEnd: {
                 type: MarkerType.ArrowClosed,
-              },
-              style: { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '5,5' },
-              label: 'Branch'
+                width: 20,
+                height: 20,
+                color: '#64748b'
+              }
+            })
+          }
+        }
+      }
+      
+      if (question.branching && typeof question.branching === 'object') {
+        Object.entries(question.branching).forEach(([optionId, targetId]) => {
+          if (targetId && targetId !== 'next' && targetId !== questionId) {
+            generatedEdges.push({
+              id: `${questionId}-${optionId}-${targetId}`,
+              source: String(questionId),
+              target: String(targetId),
+              label: 'Branch',
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: '#f59e0b'
+              }
             });
           }
         });
@@ -342,19 +352,29 @@ if (!questionId && questionId !== 0) return
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={(event, node) => {
-            const nodeId = node?.id
-            if (nodeId) {
-try {
-                const parsedId = parseInt(nodeId)
-                if (!isNaN(parsedId)) {
-                  setSelectedQuestionId(parsedId)
-                }
-              } catch (error) {
-                console.warn('Failed to parse node ID:', nodeId)
-              }
-            }
-          }}
+const onNodeClick = useCallback((event, node) => {
+    if (node?.id) {
+      try {
+        const nodeId = node.id
+        const parsedId = parseInt(nodeId, 10)
+        if (!isNaN(parsedId)) {
+          setSelectedQuestionId(parsedId)
+        } else if (typeof nodeId === 'string' || typeof nodeId === 'number') {
+          setSelectedQuestionId(nodeId)
+        }
+      } catch (error) {
+        console.error('Error selecting node:', error)
+      }
+    }
+  }, [])
+
+        return <MindmapView 
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
           onAddQuestion={() => setShowQuestionTypes(true)}
         />
       default:
@@ -373,12 +393,17 @@ try {
             setCurrentPreviewQuestion(0)
           }}
           onOpenPreview={() => {
-const url = `${window.location.origin}/preview/${quiz.id || quiz.Id}`
-            window.open(url, '_blank')
+            const quizId = quiz?.id || quiz?.Id
+            if (quizId) {
+              const url = `${window.location.origin}/preview/${quizId}`
+              window.open(url, '_blank')
+            } else {
+              toast.error('Cannot preview quiz without ID')
+            }
           }}
-        />;
+        />
     }
-  };
+  }
 
   return (
     <div className="h-screen bg-slate-50">
@@ -467,17 +492,17 @@ const url = `${window.location.origin}/preview/${quiz.id || quiz.Id}`
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-            >
 <BranchingModal
-                question={quiz?.questions?.find(q => 
-                  q && (q.Id === branchingQuestionId || q.id === branchingQuestionId)
-                ) || null}
-                allQuestions={quiz?.questions || []}
-                onSave={(branchingRules) => updateBranching(branchingQuestionId, branchingRules)}
-                onClose={() => setShowBranchingModal(false)}
-              />
-            </motion.div>
-          </motion.div>
+              question={quiz?.questions?.find(q => 
+                q && ((q.id || q.Id) === branchingQuestionId)
+              ) || null}
+              allQuestions={quiz?.questions || []}
+              onSave={(questionId, branchingRules) => updateBranching(questionId, branchingRules)}
+              onClose={() => setBranchingQuestionId(null)}
+              isOpen={!!branchingQuestionId}
+            />
+          )}
+        </AnimatePresence>
         )}
       </AnimatePresence>
     </div>
@@ -528,26 +553,25 @@ const PanelView = ({
           />
         ) : (
           <div className="space-y-3">
-            <AnimatePresence>
-{quiz.questions?.filter(Boolean).map((question, index) => {
+<AnimatePresence>
+              {quiz.questions?.filter(Boolean).map((question, index) => {
                 if (!question) return null
                 const questionId = question.Id || question.id
                 if (!questionId && questionId !== 0) return null
                 
                 return (
                   <QuestionCard
-                    key={questionId}
+                    key={questionId || `question-${index}`}
                     question={question}
                     index={index}
                     isSelected={selectedQuestionId === questionId}
-                    onSelect={onSelectQuestion}
-                    onEdit={onSelectQuestion}
-                    onDelete={onDeleteQuestion}
-                    onBranching={() => onBranchingConfig(questionId)}
-                    hasBranching={question.branching && typeof question.branching === 'object' && Object.keys(question.branching).length > 0}
+                    onSelect={() => onSelectQuestion(questionId)}
+                    onUpdate={(updates) => updateQuestion(questionId, updates)}
+                    onDelete={() => onDeleteQuestion(questionId)}
+                    onOpenBranching={() => onBranchingConfig(questionId)}
                   />
                 )
-}).filter(Boolean)}
+              }).filter(Boolean)}
             </AnimatePresence>
           </div>
         )}
@@ -627,8 +651,8 @@ const KanbanView = ({
       />
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <AnimatePresence>
-{quiz.questions?.filter(Boolean).map((question, index) => {
+<AnimatePresence>
+          {quiz.questions?.filter(Boolean).map((question, index) => {
             if (!question) return null
             const questionId = question.Id || question.id
             if (!questionId && questionId !== 0) return null
@@ -639,73 +663,71 @@ const KanbanView = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.1 }}
                 className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
                   selectedQuestionId === questionId 
                     ? 'border-blue-500 shadow-md' 
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
                 onClick={() => onSelectQuestion(questionId)}
+                whileHover={{ scale: 1.02 }}
               >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
-                    Q{index + 1}
-                  </span>
-                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded capitalize">
-                    {question.type?.replace('-', ' ')}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    icon="Settings"
-                    onClick={(e) => {
-e.stopPropagation();
-                      onBranchingConfig(questionId);
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    icon="Trash2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteQuestion(questionId);
-                    }}
-                  />
-                </div>
-              </div>
-              
-              <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
-                {question.title}
-              </h3>
-              
-              {question.options?.length > 0 && (
-                <div className="space-y-1">
-                  {question.options.slice(0, 3).map((option, idx) => (
-                    <div key={idx} className="text-sm text-slate-600 truncate">
-                      • {option.text}
-                    </div>
-                  ))}
-                  {question.options.length > 3 && (
-                    <div className="text-sm text-slate-400">
-                      +{question.options.length - 3} more options
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {question.branching && Object.keys(question.branching).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center text-xs text-orange-600">
-                    <ApperIcon name="GitBranch" size={12} className="mr-1" />
-                    Has branching logic
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
+                      Q{index + 1}
+                    </span>
+                    <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded capitalize">
+                      {question.type?.replace('-', ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      icon="Settings"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onBranchingConfig(questionId);
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      icon="Trash2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteQuestion(questionId);
+                      }}
+                    />
                   </div>
                 </div>
-              )}
-</motion.div>
+                
+                <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
+                  {question.title}
+                </h3>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Preview Options</p>
+                  {question.options && Array.isArray(question.options) && question.options.length > 0 ? (
+                    question.options.slice(0, 3).map((option, idx) => (
+                      <div key={idx} className="text-sm text-slate-600 truncate">
+                        • {option?.text || 'Unnamed option'}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-400 italic">No options configured</div>
+                  )}
+                </div>
+                
+                {question.branching && Object.keys(question.branching).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-center text-xs text-orange-600">
+                      <ApperIcon name="GitBranch" size={12} className="mr-1" />
+                      Has branching logic
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )
           }).filter(Boolean)}
         </AnimatePresence>
@@ -818,11 +840,12 @@ const handleRuleChange = (optionId, targetQuestionId) => {
     }))
   }
 
-  const handleSave = () => {
+const handleSave = () => {
     const cleanRules = Object.fromEntries(
       Object.entries(branchingRules).filter(([key, value]) => value !== null && value !== '')
     )
-    onSave(cleanRules)
+    const questionId = question?.id || question?.Id
+    onSave(questionId, cleanRules)
   }
   if (!question || !question.options || question.options.length === 0) {
     return (
@@ -861,10 +884,10 @@ const handleRuleChange = (optionId, targetQuestionId) => {
       </div>
 
       <div className="space-y-4 mb-6">
-        <div className="bg-slate-50 rounded-lg p-4">
-<div className="space-y-4">
+<div className="bg-slate-50 rounded-lg p-4">
+          <div className="space-y-4">
             <h4 className="text-sm font-medium text-slate-900">Branching Rules</h4>
-{question?.options && Array.isArray(question.options) ? question.options.filter(Boolean).map((option) => {
+            {question?.options && Array.isArray(question.options) ? question.options.filter(Boolean).map((option) => {
               if (!option) return null
               const optionId = option.id || option.Id
               const optionText = option.text || 'Untitled option'
@@ -872,43 +895,33 @@ const handleRuleChange = (optionId, targetQuestionId) => {
               if (!optionId && optionId !== 0) return null
               
               return (
-                <div key={optionId} className="flex items-center space-x-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">
-                      If user selects: "{optionText}"
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-slate-600">Go to:</span>
-                    <select
-                      value={branchingRules?.[optionId] || ''}
-                      onChange={(e) => handleRuleChange(optionId, e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    >
-                      <option value="">Next question (default)</option>
-{availableTargets && Array.isArray(availableTargets) ? availableTargets.filter(Boolean).map((target) => {
-                        if (!target) return null
-                        const targetId = target.id || target.Id
-                        const targetTitle = target.title || 'Untitled'
-                        
-                        if (!targetId && targetId !== 0) return null
-                        
-                        const questionIndex = allQuestions && Array.isArray(allQuestions) ? 
-                          allQuestions.findIndex(q => {
-                            if (!q) return false
-                            const qId = q.id || q.Id
-                            return qId === targetId
-                          }) : -1
-                        
-                        return (
-                          <option key={targetId} value={targetId}>
-                            Question {questionIndex >= 0 ? questionIndex + 1 : '?'}: {targetTitle}
-                          </option>
-                        )
-                      }).filter(Boolean) : null}
-                      <option value="complete">Complete quiz</option>
-                    </select>
-                  </div>
+                <div key={optionId} className="flex items-center gap-3">
+                  <span className="text-sm font-medium min-w-0 flex-1">
+                    If user selects: "{optionText}"
+                  </span>
+                  <select
+                    value={branchingRules?.[optionId] || ''}
+                    onChange={(e) => handleRuleChange(optionId, e.target.value)}
+                    className="border border-slate-300 rounded px-2 py-1 text-sm"
+                  >
+                    <option value="">Continue to next question</option>
+                    {availableTargets.map((target) => {
+                      const targetId = target?.id || target?.Id
+                      const targetTitle = target?.title || 'Untitled Question'
+                      const questionIndex = allQuestions ? allQuestions.findIndex(q => {
+                        if (!q) return false
+                        const qId = q.id || q.Id
+                        return qId === targetId
+                      }) : -1
+                      
+                      return (
+                        <option key={targetId} value={targetId}>
+                          Q{questionIndex + 1}: {targetTitle}
+                        </option>
+                      )
+                    }).filter(Boolean)}
+                    <option value="complete">Complete quiz</option>
+                  </select>
                 </div>
               )
             }).filter(Boolean) : (
