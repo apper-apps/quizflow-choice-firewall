@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "react-toastify";
+import ReactFlow, { Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from "react-flow-renderer";
 import ApperIcon from "@/components/ApperIcon";
 import Builder from "@/components/pages/Builder";
 import Settings from "@/components/pages/Settings";
@@ -18,13 +19,16 @@ import { quizService } from "@/services/api/quizService";
 const QuizBuilder = ({ quizId }) => {
   const [quiz, setQuiz] = useState(null)
   const [loading, setLoading] = useState(false)
-const [error, setError] = useState('')
+  const [error, setError] = useState('')
+  const [viewMode, setViewMode] = useState('panel') // 'panel', 'kanban', 'mindmap'
   const [selectedQuestionId, setSelectedQuestionId] = useState(null)
   const [showQuestionTypes, setShowQuestionTypes] = useState(false)
   const [showBranchingModal, setShowBranchingModal] = useState(false)
   const [branchingQuestionId, setBranchingQuestionId] = useState(null)
   const [previewResponses, setPreviewResponses] = useState({})
   const [currentPreviewQuestion, setCurrentPreviewQuestion] = useState(0)
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
   useEffect(() => {
     if (quizId) {
       loadQuiz()
@@ -135,7 +139,6 @@ const addQuestion = async (type) => {
         setSelectedQuestionId(updatedQuestions.length > 0 ? updatedQuestions[0].Id : null)
       }
       
-      toast.success('Question deleted')
 toast.success('Question deleted')
     } catch (err) {
       toast.error('Failed to delete question')
@@ -143,7 +146,8 @@ toast.success('Question deleted')
     }
   }
   
-  const openBranchingModal = (questionId) => {
+const openBranchingModal = (questionId) => {
+    setBranchingQuestionId(questionId)
     setShowBranchingModal(true)
   }
 
@@ -171,14 +175,136 @@ toast.success('Question deleted')
   if (error) return <Error message={error} onRetry={quizId ? loadQuiz : createNewQuiz} />
   if (!quiz) return <Error message="Quiz not found" />
 
+const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+
+  // Generate mindmap nodes and edges from questions
+  useEffect(() => {
+    if (!quiz?.questions || viewMode !== 'mindmap') return;
+
+    const generatedNodes = quiz.questions.map((question, index) => ({
+      id: question.Id.toString(),
+      type: 'default',
+      position: { 
+        x: (index % 3) * 300 + 100, 
+        y: Math.floor(index / 3) * 150 + 100 
+      },
+      data: { 
+        label: (
+          <div className="p-3">
+            <div className="font-semibold text-sm mb-1">Q{index + 1}</div>
+            <div className="text-xs text-slate-600 truncate w-32">
+              {question.title}
+            </div>
+          </div>
+        )
+      },
+      style: {
+        background: selectedQuestionId === question.Id ? '#3b82f6' : '#ffffff',
+        color: selectedQuestionId === question.Id ? '#ffffff' : '#1e293b',
+        border: '2px solid #e2e8f0',
+        borderRadius: '8px',
+        width: 200,
+        fontSize: '12px'
+      }
+    }));
+
+    const generatedEdges = [];
+    quiz.questions.forEach((question, index) => {
+      if (index < quiz.questions.length - 1) {
+        generatedEdges.push({
+          id: `e${question.Id}-${quiz.questions[index + 1].Id}`,
+          source: question.Id.toString(),
+          target: quiz.questions[index + 1].Id.toString(),
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+        });
+      }
+      
+      // Add branching edges
+      if (question.branching) {
+        Object.entries(question.branching).forEach(([optionId, targetId]) => {
+          if (targetId && targetId !== 'complete') {
+            generatedEdges.push({
+              id: `e${question.Id}-${targetId}-branch`,
+              source: question.Id.toString(),
+              target: targetId.toString(),
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+              },
+              style: { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '5,5' },
+              label: 'Branch'
+            });
+          }
+        });
+      }
+    });
+
+    setNodes(generatedNodes);
+    setEdges(generatedEdges);
+  }, [quiz?.questions, viewMode, selectedQuestionId, setNodes, setEdges]);
+
+  const renderCurrentView = () => {
+    switch (viewMode) {
+      case 'kanban':
+        return <KanbanView 
+          quiz={quiz}
+          selectedQuestionId={selectedQuestionId}
+          onSelectQuestion={setSelectedQuestionId}
+          onDeleteQuestion={deleteQuestion}
+          onAddQuestion={() => setShowQuestionTypes(true)}
+          onBranchingConfig={openBranchingModal}
+        />;
+      case 'mindmap':
+        return <MindmapView 
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={(event, node) => setSelectedQuestionId(parseInt(node.id))}
+          onAddQuestion={() => setShowQuestionTypes(true)}
+        />;
+      default:
+        return <PanelView 
+          quiz={quiz}
+          selectedQuestionId={selectedQuestionId}
+          onSelectQuestion={setSelectedQuestionId}
+          onDeleteQuestion={deleteQuestion}
+          onAddQuestion={() => setShowQuestionTypes(true)}
+          onBranchingConfig={openBranchingModal}
+          previewResponses={previewResponses}
+          currentPreviewQuestion={currentPreviewQuestion}
+          onPreviewResponse={handlePreviewResponse}
+          onResetPreview={() => {
+            setPreviewResponses({})
+            setCurrentPreviewQuestion(0)
+          }}
+          onOpenPreview={() => {
+            const url = `${window.location.origin}/preview/${quiz.Id}`
+            window.open(url, '_blank')
+          }}
+        />;
+    }
+  };
+
   return (
-    <div className="h-screen flex bg-slate-50">
-      {/* Left Panel - Quiz Structure */}
-      <div className="w-1/3 bg-white border-r border-slate-200 flex flex-col">
-        {/* Quiz Header */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-lg font-bold text-slate-900">Quiz Builder</h1>
+    <div className="h-screen bg-slate-50">
+      {/* Header with View Switcher */}
+      <div className="bg-white border-b border-slate-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-bold text-slate-900">Quiz Builder</h1>
+            <Input
+              value={quiz?.title || ''}
+              onChange={(e) => updateQuiz({ title: e.target.value })}
+              placeholder="Quiz Title"
+              className="font-semibold"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <ViewSwitcher currentView={viewMode} onViewChange={setViewMode} />
             <Button
               variant="outline"
               size="sm"
@@ -188,171 +314,378 @@ toast.success('Question deleted')
               Settings
             </Button>
           </div>
-          
-          <Input
-            value={quiz.title}
-            onChange={(e) => updateQuiz({ title: e.target.value })}
-            placeholder="Quiz Title"
-            className="font-semibold text-lg"
-          />
-        </div>
-
-        {/* Questions List */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-900">
-              Questions ({quiz.questions?.length || 0})
-            </h2>
-            <Button
-              variant="primary"
-              size="sm"
-              icon="Plus"
-              onClick={() => setShowQuestionTypes(true)}
-            >
-              Add Question
-            </Button>
-          </div>
-
-          {quiz.questions?.length === 0 ? (
-            <Empty
-              title="No questions yet"
-              message="Add your first question to start building your quiz."
-              icon="MessageSquare"
-              actionText="Add Question"
-              onAction={() => setShowQuestionTypes(true)}
-              className="min-h-64"
-            />
-          ) : (
-<div className="space-y-3">
-              <AnimatePresence>
-                {quiz.questions?.map((question, index) => (
-                  <QuestionCard
-                    key={question.Id}
-                    question={question}
-                    index={index}
-                    isSelected={selectedQuestionId === question.Id}
-                    onSelect={setSelectedQuestionId}
-                    onEdit={setSelectedQuestionId}
-                    onDelete={deleteQuestion}
-                    onBranching={() => openBranchingModal(question.Id)}
-                    hasBranching={question.branching && Object.keys(question.branching).length > 0}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-
-        {/* Question Type Selector Modal */}
-        <AnimatePresence>
-          {showQuestionTypes && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowQuestionTypes(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-xl p-6 w-full max-w-4xl"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Choose Question Type
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon="X"
-                    onClick={() => setShowQuestionTypes(false)}
-                  />
-                </div>
-                
-                <QuestionTypeSelector
-                  onSelect={addQuestion}
-                />
-              </motion.div>
-            </motion.div>
-)}
-        </AnimatePresence>
-
-        {/* Branching Configuration Modal */}
-        <AnimatePresence>
-          {showBranchingModal && branchingQuestionId && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowBranchingModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-              >
-                <BranchingModal
-                  question={quiz.questions?.find(q => q.Id === branchingQuestionId)}
-                  allQuestions={quiz.questions || []}
-                  onSave={(branchingRules) => updateBranching(branchingQuestionId, branchingRules)}
-                  onClose={() => setShowBranchingModal(false)}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Right Panel - Mobile Preview */}
-      <div className="flex-1 bg-slate-100 p-6 overflow-y-auto">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Mobile Preview
-            </h2>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                icon="RotateCcw"
-                onClick={() => {
-                  setPreviewResponses({})
-                  setCurrentPreviewQuestion(0)
-                }}
-              >
-                Reset
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                icon="ExternalLink"
-                onClick={() => {
-                  const url = `${window.location.origin}/preview/${quiz.Id}`
-                  window.open(url, '_blank')
-                }}
-              >
-                Preview
-              </Button>
-            </div>
-          </div>
-          
-          <MobilePreview
-            quiz={quiz}
-            currentQuestion={currentPreviewQuestion}
-            responses={previewResponses}
-            onResponse={handlePreviewResponse}
-/>
         </div>
       </div>
+
+      {/* Main Content Area */}
+      <div className="h-full pt-20">
+        {renderCurrentView()}
+      </div>
+
+      {/* Question Type Selector Modal */}
+      <AnimatePresence>
+        {showQuestionTypes && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowQuestionTypes(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 w-full max-w-4xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-slate-900">
+                  Choose Question Type
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="X"
+                  onClick={() => setShowQuestionTypes(false)}
+                />
+              </div>
+              
+              <QuestionTypeSelector
+                onSelect={addQuestion}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Branching Configuration Modal */}
+      <AnimatePresence>
+        {showBranchingModal && branchingQuestionId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowBranchingModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            >
+              <BranchingModal
+                question={quiz.questions?.find(q => q.Id === branchingQuestionId)}
+                allQuestions={quiz.questions || []}
+                onSave={(branchingRules) => updateBranching(branchingQuestionId, branchingRules)}
+                onClose={() => setShowBranchingModal(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
+
+// Panel View Component (Original Layout)
+const PanelView = ({ 
+  quiz, 
+  selectedQuestionId, 
+  onSelectQuestion, 
+  onDeleteQuestion, 
+  onAddQuestion, 
+  onBranchingConfig,
+  previewResponses,
+  currentPreviewQuestion,
+  onPreviewResponse,
+  onResetPreview,
+  onOpenPreview
+}) => (
+  <div className="h-full flex">
+    {/* Left Panel - Quiz Structure */}
+    <div className="w-1/3 bg-white border-r border-slate-200 flex flex-col">
+      {/* Questions List */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-900">
+            Questions ({quiz.questions?.length || 0})
+          </h2>
+          <Button
+            variant="primary"
+            size="sm"
+            icon="Plus"
+            onClick={onAddQuestion}
+          >
+            Add Question
+          </Button>
+        </div>
+
+        {quiz.questions?.length === 0 ? (
+          <Empty
+            title="No questions yet"
+            message="Add your first question to start building your quiz."
+            icon="MessageSquare"
+            actionText="Add Question"
+            onAction={onAddQuestion}
+            className="min-h-64"
+          />
+        ) : (
+          <div className="space-y-3">
+            <AnimatePresence>
+              {quiz.questions?.map((question, index) => (
+                <QuestionCard
+                  key={question.Id}
+                  question={question}
+                  index={index}
+                  isSelected={selectedQuestionId === question.Id}
+                  onSelect={onSelectQuestion}
+                  onEdit={onSelectQuestion}
+                  onDelete={onDeleteQuestion}
+                  onBranching={() => onBranchingConfig(question.Id)}
+                  hasBranching={question.branching && Object.keys(question.branching).length > 0}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Right Panel - Mobile Preview */}
+    <div className="flex-1 bg-slate-100 p-6 overflow-y-auto">
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Mobile Preview
+          </h2>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon="RotateCcw"
+              onClick={onResetPreview}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon="ExternalLink"
+              onClick={onOpenPreview}
+            >
+              Preview
+            </Button>
+          </div>
+        </div>
+        
+        <MobilePreview
+          quiz={quiz}
+          currentQuestion={currentPreviewQuestion}
+          responses={previewResponses}
+          onResponse={onPreviewResponse}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+// Kanban View Component
+const KanbanView = ({ 
+  quiz, 
+  selectedQuestionId, 
+  onSelectQuestion, 
+  onDeleteQuestion, 
+  onAddQuestion, 
+  onBranchingConfig 
+}) => (
+  <div className="h-full p-6 overflow-auto">
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-xl font-semibold text-slate-900">
+        Kanban View - Questions ({quiz.questions?.length || 0})
+      </h2>
+      <Button
+        variant="primary"
+        size="sm"
+        icon="Plus"
+        onClick={onAddQuestion}
+      >
+        Add Question
+      </Button>
+    </div>
+
+    {quiz.questions?.length === 0 ? (
+      <Empty
+        title="No questions yet"
+        message="Add your first question to start building your quiz."
+        icon="MessageSquare"
+        actionText="Add Question"
+        onAction={onAddQuestion}
+        className="min-h-96"
+      />
+    ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <AnimatePresence>
+          {quiz.questions?.map((question, index) => (
+            <motion.div
+              key={question.Id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ delay: index * 0.1 }}
+              className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                selectedQuestionId === question.Id 
+                  ? 'border-blue-500 shadow-md' 
+                  : 'border-slate-200 hover:border-slate-300'
+              }`}
+              onClick={() => onSelectQuestion(question.Id)}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
+                    Q{index + 1}
+                  </span>
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded capitalize">
+                    {question.type?.replace('-', ' ')}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    icon="Settings"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onBranchingConfig(question.Id);
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    icon="Trash2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteQuestion(question.Id);
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
+                {question.title}
+              </h3>
+              
+              {question.options?.length > 0 && (
+                <div className="space-y-1">
+                  {question.options.slice(0, 3).map((option, idx) => (
+                    <div key={idx} className="text-sm text-slate-600 truncate">
+                      • {option.text}
+                    </div>
+                  ))}
+                  {question.options.length > 3 && (
+                    <div className="text-sm text-slate-400">
+                      +{question.options.length - 3} more options
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {question.branching && Object.keys(question.branching).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center text-xs text-orange-600">
+                    <ApperIcon name="GitBranch" size={12} className="mr-1" />
+                    Has branching logic
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    )}
+  </div>
+);
+
+// Mindmap View Component
+const MindmapView = ({ 
+  nodes, 
+  edges, 
+  onNodesChange, 
+  onEdgesChange, 
+  onConnect, 
+  onNodeClick,
+  onAddQuestion 
+}) => (
+  <div className="h-full relative">
+    <div className="absolute top-4 right-4 z-10">
+      <Button
+        variant="primary"
+        size="sm"
+        icon="Plus"
+        onClick={onAddQuestion}
+      >
+        Add Question
+      </Button>
+    </div>
+    
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onNodeClick={onNodeClick}
+      fitView
+      attributionPosition="bottom-left"
+    >
+      <MiniMap />
+      <Controls />
+      <Background />
+    </ReactFlow>
+  </div>
+);
+
+// View Switcher Component
+const ViewSwitcher = ({ currentView, onViewChange }) => (
+  <div className="flex bg-slate-100 rounded-lg p-1">
+    <button
+      onClick={() => onViewChange('panel')}
+      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+        currentView === 'panel'
+          ? 'bg-white text-slate-900 shadow-sm'
+          : 'text-slate-600 hover:text-slate-900'
+      }`}
+    >
+      <ApperIcon name="PanelLeftClose" size={16} className="mr-2 inline" />
+      Panel
+    </button>
+    <button
+      onClick={() => onViewChange('kanban')}
+      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+        currentView === 'kanban'
+          ? 'bg-white text-slate-900 shadow-sm'
+          : 'text-slate-600 hover:text-slate-900'
+      }`}
+    >
+      <ApperIcon name="Columns" size={16} className="mr-2 inline" />
+      Kanban
+    </button>
+    <button
+      onClick={() => onViewChange('mindmap')}
+      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+        currentView === 'mindmap'
+          ? 'bg-white text-slate-900 shadow-sm'
+          : 'text-slate-600 hover:text-slate-900'
+      }`}
+    >
+      <ApperIcon name="GitBranch" size={16} className="mr-2 inline" />
+      Mindmap
+    </button>
+  </div>
+);
+
 
 // Branching Configuration Modal Component
 const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
@@ -465,9 +798,9 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
         </Button>
         <Button variant="primary" onClick={handleSave}>
           Save Branching Rules
-        </Button>
+</Button>
       </div>
-</div>
+    </div>
   )
 }
 

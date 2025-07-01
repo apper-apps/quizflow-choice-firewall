@@ -5,8 +5,8 @@ import QuizBuilder from '@/components/organisms/QuizBuilder'
 const Builder = () => {
   const { quizId } = useParams()
   
-  return (
-    <div className="h-screen">
+return (
+    <div>
       <QuizBuilder quizId={quizId} />
     </div>
   )
