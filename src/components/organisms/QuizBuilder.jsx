@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { toast } from "react-toastify";
-import ReactFlow, { Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from "react-flow-renderer";
-import ApperIcon from "@/components/ApperIcon";
+import React, { useCallback, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { toast } from 'react-toastify'
+import ReactFlow, { Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from '@xyflow/react'
+import ApperIcon from '@/components/ApperIcon'
 import Builder from "@/components/pages/Builder";
 import Settings from "@/components/pages/Settings";
 import Card from "@/components/atoms/Card";
