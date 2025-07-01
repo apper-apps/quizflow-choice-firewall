@@ -301,16 +301,14 @@ if (!questionId && questionId !== 0) return
           });
         }
       }
-      
-      // Add branching edges
+// Add branching edges
       if (question.branching && typeof question.branching === 'object') {
-if (question.branching && typeof question.branching === 'object') {
-          Object.entries(question.branching).forEach(([optionId, targetId]) => {
-            if (targetId && targetId !== 'complete' && targetId !== questionId && optionId) {
-              generatedEdges.push({
-                id: `e${questionId}-${targetId}-branch`,
-                source: String(questionId),
-                target: String(targetId),
+        Object.entries(question.branching).forEach(([optionId, targetId]) => {
+          if (targetId && targetId !== 'complete' && targetId !== questionId && optionId) {
+            generatedEdges.push({
+              id: `e${questionId}-${targetId}-branch`,
+              source: String(questionId),
+              target: String(targetId),
               markerEnd: {
                 type: MarkerType.ArrowClosed,
               },
