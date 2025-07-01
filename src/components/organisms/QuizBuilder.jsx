@@ -92,25 +92,29 @@ const QuizBuilder = ({ quizId }) => {
 
 const addQuestion = async (type) => {
     try {
+      if (!quiz || !quiz.questions) {
+        toast.error('Quiz data not available')
+        return
+      }
+
       const newQuestion = {
         type,
         title: 'New Question',
         options: type === 'text-field' || type === 'contact-fields' ? [] : [
-          { text: 'Option 1', imageUrl: '', value: 'option1' },
-          { text: 'Option 2', imageUrl: '', value: 'option2' }
+          { text: 'Option 1', imageUrl: '', value: 'option1', id: `opt_${Date.now()}_1` },
+          { text: 'Option 2', imageUrl: '', value: 'option2', id: `opt_${Date.now()}_2` }
         ],
         required: false,
         order: quiz.questions.length,
-        branching: {}
+        branching: {},
+        id: `q_${Date.now()}`
       }
 
       const updatedQuestions = [...quiz.questions, newQuestion]
       await updateQuiz({ questions: updatedQuestions })
       
-      // Select the new question and generate a temporary ID
-      const tempId = Date.now()
-      newQuestion.Id = tempId
-      setSelectedQuestionId(tempId)
+      // Select the new question
+      setSelectedQuestionId(newQuestion.id)
       setShowQuestionTypes(false)
     } catch (err) {
       toast.error('Failed to add question')
@@ -748,26 +752,26 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
         <div className="bg-slate-50 rounded-lg p-4">
           <h4 className="font-semibold text-slate-900 mb-3">Branching Rules</h4>
           <div className="space-y-3">
-            {question.options.map((option) => (
-              <div key={option.Id} className="flex items-center space-x-4">
+{question?.options?.map((option) => (
+              <div key={option?.id || option?.Id || Math.random()} className="flex items-center space-x-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900 truncate">
-                    If user selects: "{option.text}"
+                    If user selects: "{option?.text || 'Untitled option'}"
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-slate-600">Go to:</span>
                   <select
-                    value={branchingRules[option.Id] || ''}
-                    onChange={(e) => handleRuleChange(option.Id, e.target.value)}
+                    value={branchingRules?.[option?.id || option?.Id] || ''}
+                    onChange={(e) => handleRuleChange(option?.id || option?.Id, e.target.value)}
                     className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="">Next question (default)</option>
-                    {availableTargets.map((target) => (
-                      <option key={target.Id} value={target.Id}>
-                        Question {allQuestions.findIndex(q => q.Id === target.Id) + 1}: {target.title}
+                    {availableTargets?.map((target) => (
+                      <option key={target?.id || target?.Id || Math.random()} value={target?.id || target?.Id}>
+                        Question {(allQuestions?.findIndex(q => (q?.id || q?.Id) === (target?.id || target?.Id)) + 1) || 0}: {target?.title || 'Untitled'}
                       </option>
-                    ))}
+                    )) || null}
                     <option value="complete">Complete quiz</option>
                   </select>
                 </div>
