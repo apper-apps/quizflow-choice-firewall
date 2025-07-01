@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'react-toastify'
-import ReactFlow, { Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from '@xyflow/react'
+import { ReactFlow, Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from '@xyflow/react'
 import ApperIcon from '@/components/ApperIcon'
-import Builder from "@/components/pages/Builder";
-import Settings from "@/components/pages/Settings";
+import Builder from '@/components/pages/Builder'
+import Settings from '@/components/pages/Settings'
 import Card from "@/components/atoms/Card";
 import Input from "@/components/atoms/Input";
 import Button from "@/components/atoms/Button";
