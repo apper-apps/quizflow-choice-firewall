@@ -4,7 +4,7 @@
       "Id": 1,
       "title": "What's Your Marketing Style?",
       "description": "Discover your unique marketing approach and get personalized recommendations.",
-      "questions": [
+"questions": [
         {
           "Id": 1,
           "type": "text-list",
@@ -32,9 +32,15 @@
             }
           ],
           "required": true,
-          "order": 0
+          "order": 0,
+          "branching": {
+            "1": 2,
+            "2": 3,
+            "3": 3,
+            "4": 2
+          }
         },
-        {
+{
           "Id": 2,
           "type": "image-list",
           "title": "Which social media platform resonates with you most?",
@@ -65,7 +71,13 @@
             }
           ],
           "required": true,
-          "order": 1
+          "order": 1,
+          "branching": {
+            "5": 3,
+            "6": 3,
+            "7": 3,
+            "8": 3
+          }
         },
         {
           "Id": 3,

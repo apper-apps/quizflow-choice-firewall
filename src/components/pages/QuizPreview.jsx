@@ -51,10 +51,43 @@ const QuizPreview = () => {
       [questionId]: response
     }))
   }
+const findNextQuestion = (currentQuestionIndex, userResponse) => {
+    const question = quiz.questions[currentQuestionIndex]
+    
+    // Check if question has branching logic
+    if (question.branching && userResponse !== null && userResponse !== undefined) {
+      let branchingKey = userResponse
+      
+      // Handle different response types
+      if (Array.isArray(userResponse)) {
+        // For multi-select (image-matrix), use first selection for branching
+        branchingKey = userResponse[0]
+      }
+      
+      // Get the target question ID from branching rules
+      const targetQuestionId = question.branching[branchingKey]
+      
+      if (targetQuestionId) {
+        // Find the index of the target question
+        const targetIndex = quiz.questions.findIndex(q => q.Id === targetQuestionId)
+        if (targetIndex !== -1) {
+          return targetIndex
+        }
+      }
+    }
+    
+    // Default: go to next question in sequence
+    return currentQuestionIndex + 1
+  }
 
   const nextQuestion = () => {
-    if (currentQuestion < quiz.questions.length - 1) {
-      setCurrentQuestion(prev => prev + 1)
+    const currentQuestionData = quiz.questions[currentQuestion]
+    const userResponse = responses[currentQuestionData.Id]
+    
+    const nextIndex = findNextQuestion(currentQuestion, userResponse)
+    
+    if (nextIndex < quiz.questions.length) {
+      setCurrentQuestion(nextIndex)
     } else {
       setIsCompleted(true)
     }

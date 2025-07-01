@@ -33,12 +33,16 @@ class QuizService {
     this.quizzes.push(newQuiz)
     return { ...newQuiz }
   }
-
-  async update(id, updates) {
+async update(id, updates) {
     await delay(300)
     const index = this.quizzes.findIndex(q => q.Id === id)
     if (index === -1) {
       throw new Error('Quiz not found')
+    }
+    
+    // Validate branching rules if present
+    if (updates.questions) {
+      this.validateBranchingRules(updates.questions)
     }
     
     this.quizzes[index] = {
@@ -47,6 +51,20 @@ class QuizService {
       updatedAt: new Date().toISOString()
     }
     return { ...this.quizzes[index] }
+  }
+
+  validateBranchingRules(questions) {
+    const questionIds = new Set(questions.map(q => q.Id))
+    
+    questions.forEach(question => {
+      if (question.branching) {
+        Object.values(question.branching).forEach(targetId => {
+          if (targetId !== 'complete' && !questionIds.has(targetId)) {
+            throw new Error(`Invalid branching target: Question ${targetId} not found`)
+          }
+        })
+      }
+    })
   }
 
   async delete(id) {
