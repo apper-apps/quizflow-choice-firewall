@@ -50,8 +50,8 @@ const loadQuiz = async () => {
       setQuiz(data)
       if (data.questions?.length > 0) {
         const firstQuestion = data.questions[0]
-        const questionId = firstQuestion?.Id || firstQuestion?.id
-        if (questionId) {
+const questionId = firstQuestion?.Id || firstQuestion?.id
+        if (questionId && (typeof questionId === 'string' || typeof questionId === 'number')) {
           setSelectedQuestionId(questionId)
         }
       }
@@ -90,7 +90,7 @@ const loadQuiz = async () => {
   const updateQuiz = async (updates) => {
     try {
       const updatedQuiz = { ...quiz, ...updates }
-      await quizService.update(quiz.Id, updatedQuiz)
+await quizService.update(quiz.id || quiz.Id, updatedQuiz)
       setQuiz(updatedQuiz)
       toast.success('Quiz updated successfully')
     } catch (err) {
@@ -144,8 +144,13 @@ const addQuestion = async (type) => {
         return qId === questionId ? { ...q, ...updates } : q
       })
       const updatedQuiz = { ...quiz, questions: updatedQuestions }
-      
-      await quizService.update(quiz.id, updatedQuiz)
+try {
+        await quizService.update(quiz.id || quiz.Id, updatedQuiz)
+      } catch (error) {
+        console.error('Failed to update quiz:', error)
+        toast.error('Failed to save changes')
+        throw error
+      }
       setQuiz(updatedQuiz)
       toast.success('Question updated successfully')
     } catch (err) {
@@ -185,6 +190,10 @@ const deleteQuestion = async (questionId) => {
   }
   
 const openBranchingModal = (questionId) => {
+    if (!questionId) {
+      console.warn('Cannot open branching modal: missing question ID')
+      return
+    }
     setBranchingQuestionId(questionId)
     setShowBranchingModal(true)
   }
@@ -208,10 +217,11 @@ const handlePreviewResponse = (questionId, response) => {
     }))
   }
 
-  const selectedQuestion = quiz?.questions?.find(q => {
-    const qId = q?.Id || q?.id
-    return qId === selectedQuestionId
-  })
+const selectedQuestion = quiz?.questions?.find(q => {
+    if (!q) return false
+    const qId = q.Id || q.id
+    return qId && qId === selectedQuestionId
+  }) || null
 
 const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
@@ -228,16 +238,21 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
     }
 
     const generatedNodes = quiz.questions.map((question, index) => {
-      const questionId = question?.Id || question?.id
-      const questionTitle = question?.title || 'Untitled Question'
+if (!question) {
+        console.warn('Invalid question data:', question)
+        return null
+      }
       
-      if (!questionId) {
+      const questionId = question.Id || question.id
+      const questionTitle = question.title || 'Untitled Question'
+      
+      if (!questionId && questionId !== 0) {
         console.warn('Question missing ID:', question)
         return null
       }
 
       return {
-        id: questionId.toString(),
+        id: String(questionId),
         type: 'default',
         position: { 
           x: (index % 3) * 300 + 100, 
@@ -267,16 +282,18 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
     const generatedEdges = [];
     quiz.questions.forEach((question, index) => {
       const questionId = question?.Id || question?.id
-      if (!questionId) return
+if (!questionId && questionId !== 0) return
 
-      if (index < quiz.questions.length - 1) {
+      if (index < (quiz?.questions?.length || 0) - 1) {
         const nextQuestion = quiz.questions[index + 1]
-        const nextQuestionId = nextQuestion?.Id || nextQuestion?.id
+        if (!nextQuestion) return
         
-        if (nextQuestionId) {
+        const nextQuestionId = nextQuestion.Id || nextQuestion.id
+        
+        if (nextQuestionId || nextQuestionId === 0) {
           generatedEdges.push({
             id: `e${questionId}-${nextQuestionId}`,
-            source: questionId.toString(),
+            source: String(questionId),
             target: nextQuestionId.toString(),
             markerEnd: {
               type: MarkerType.ArrowClosed,
@@ -287,12 +304,13 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
       
       // Add branching edges
       if (question.branching && typeof question.branching === 'object') {
-        Object.entries(question.branching).forEach(([optionId, targetId]) => {
-          if (targetId && targetId !== 'complete' && targetId !== questionId) {
-            generatedEdges.push({
-              id: `e${questionId}-${targetId}-branch`,
-              source: questionId.toString(),
-              target: targetId.toString(),
+if (question.branching && typeof question.branching === 'object') {
+          Object.entries(question.branching).forEach(([optionId, targetId]) => {
+            if (targetId && targetId !== 'complete' && targetId !== questionId && optionId) {
+              generatedEdges.push({
+                id: `e${questionId}-${targetId}-branch`,
+                source: String(questionId),
+                target: String(targetId),
               markerEnd: {
                 type: MarkerType.ArrowClosed,
               },
@@ -329,9 +347,13 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
           onNodeClick={(event, node) => {
             const nodeId = node?.id
             if (nodeId) {
-              const parsedId = parseInt(nodeId)
-              if (!isNaN(parsedId)) {
-                setSelectedQuestionId(parsedId)
+try {
+                const parsedId = parseInt(nodeId)
+                if (!isNaN(parsedId)) {
+                  setSelectedQuestionId(parsedId)
+                }
+              } catch (error) {
+                console.warn('Failed to parse node ID:', nodeId)
               }
             }
           }}
@@ -353,7 +375,7 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
             setCurrentPreviewQuestion(0)
           }}
           onOpenPreview={() => {
-            const url = `${window.location.origin}/preview/${quiz.Id}`
+const url = `${window.location.origin}/preview/${quiz.id || quiz.Id}`
             window.open(url, '_blank')
           }}
         />;
@@ -448,9 +470,11 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
             >
-              <BranchingModal
-                question={quiz.questions?.find(q => q.Id === branchingQuestionId)}
-                allQuestions={quiz.questions || []}
+<BranchingModal
+                question={quiz?.questions?.find(q => 
+                  q && (q.Id === branchingQuestionId || q.id === branchingQuestionId)
+                ) || null}
+                allQuestions={quiz?.questions || []}
                 onSave={(branchingRules) => updateBranching(branchingQuestionId, branchingRules)}
                 onClose={() => setShowBranchingModal(false)}
               />
@@ -507,19 +531,25 @@ const PanelView = ({
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
-              {quiz.questions?.map((question, index) => (
-                <QuestionCard
-                  key={question.Id}
-                  question={question}
-                  index={index}
-                  isSelected={selectedQuestionId === question.Id}
-                  onSelect={onSelectQuestion}
-                  onEdit={onSelectQuestion}
-                  onDelete={onDeleteQuestion}
-                  onBranching={() => onBranchingConfig(question.Id)}
-                  hasBranching={question.branching && Object.keys(question.branching).length > 0}
-                />
-              ))}
+{quiz.questions?.filter(Boolean).map((question, index) => {
+                if (!question) return null
+                const questionId = question.Id || question.id
+                if (!questionId && questionId !== 0) return null
+                
+                return (
+                  <QuestionCard
+                    key={questionId}
+                    question={question}
+                    index={index}
+                    isSelected={selectedQuestionId === questionId}
+                    onSelect={onSelectQuestion}
+                    onEdit={onSelectQuestion}
+                    onDelete={onDeleteQuestion}
+                    onBranching={() => onBranchingConfig(questionId)}
+                    hasBranching={question.branching && typeof question.branching === 'object' && Object.keys(question.branching).length > 0}
+                  />
+                )
+}).filter(Boolean)}
             </AnimatePresence>
           </div>
         )}
@@ -600,20 +630,25 @@ const KanbanView = ({
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AnimatePresence>
-          {quiz.questions?.map((question, index) => (
-            <motion.div
-              key={question.Id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: index * 0.1 }}
-              className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                selectedQuestionId === question.Id 
-                  ? 'border-blue-500 shadow-md' 
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-              onClick={() => onSelectQuestion(question.Id)}
-            >
+{quiz.questions?.filter(Boolean).map((question, index) => {
+            if (!question) return null
+            const questionId = question.Id || question.id
+            if (!questionId && questionId !== 0) return null
+            
+            return (
+              <motion.div
+                key={questionId}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: index * 0.1 }}
+                className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                  selectedQuestionId === questionId 
+                    ? 'border-blue-500 shadow-md' 
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => onSelectQuestion(questionId)}
+              >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
@@ -629,8 +664,8 @@ const KanbanView = ({
                     size="xs"
                     icon="Settings"
                     onClick={(e) => {
-                      e.stopPropagation();
-                      onBranchingConfig(question.Id);
+e.stopPropagation();
+                      onBranchingConfig(questionId);
                     }}
                   />
                   <Button
@@ -639,7 +674,7 @@ const KanbanView = ({
                     icon="Trash2"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDeleteQuestion(question.Id);
+                      onDeleteQuestion(questionId);
                     }}
                   />
                 </div>
@@ -672,8 +707,9 @@ const KanbanView = ({
                   </div>
                 </div>
               )}
-            </motion.div>
-          ))}
+</motion.div>
+            )
+          }).filter(Boolean)}
         </AnimatePresence>
       </div>
     )}
@@ -763,14 +799,24 @@ const ViewSwitcher = ({ currentView, onViewChange }) => (
 const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
   const [branchingRules, setBranchingRules] = useState(question?.branching || {})
 
-  const availableTargets = allQuestions.filter(q => q.Id !== question?.Id)
+const availableTargets = allQuestions?.filter(q => {
+    const qId = q?.id || q?.Id
+    const questionId = question?.id || question?.Id
+    return qId && qId !== questionId
+  }) || []
 
 const handleRuleChange = (optionId, targetQuestionId) => {
-    if (!optionId) return
+    if (!optionId && optionId !== 0) return
+    
+    let processedTargetId = null
+    if (targetQuestionId && targetQuestionId !== '') {
+      const parsed = parseInt(targetQuestionId)
+      processedTargetId = isNaN(parsed) ? targetQuestionId : parsed
+    }
     
     setBranchingRules(prev => ({
       ...prev,
-      [optionId]: targetQuestionId ? (isNaN(parseInt(targetQuestionId)) ? null : parseInt(targetQuestionId)) : null
+      [optionId]: processedTargetId
     }))
   }
 
@@ -820,11 +866,12 @@ const handleRuleChange = (optionId, targetQuestionId) => {
         <div className="bg-slate-50 rounded-lg p-4">
 <div className="space-y-4">
             <h4 className="text-sm font-medium text-slate-900">Branching Rules</h4>
-            {question?.options && Array.isArray(question.options) ? question.options.map((option) => {
-              const optionId = option?.id || option?.Id
-              const optionText = option?.text || 'Untitled option'
+{question?.options && Array.isArray(question.options) ? question.options.filter(Boolean).map((option) => {
+              if (!option) return null
+              const optionId = option.id || option.Id
+              const optionText = option.text || 'Untitled option'
               
-              if (!optionId) return null
+              if (!optionId && optionId !== 0) return null
               
               return (
                 <div key={optionId} className="flex items-center space-x-4">
@@ -841,21 +888,23 @@ const handleRuleChange = (optionId, targetQuestionId) => {
                       className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     >
                       <option value="">Next question (default)</option>
-                      {availableTargets && Array.isArray(availableTargets) ? availableTargets.map((target) => {
-                        const targetId = target?.id || target?.Id
-                        const targetTitle = target?.title || 'Untitled'
+{availableTargets && Array.isArray(availableTargets) ? availableTargets.filter(Boolean).map((target) => {
+                        if (!target) return null
+                        const targetId = target.id || target.Id
+                        const targetTitle = target.title || 'Untitled'
                         
-                        if (!targetId) return null
+                        if (!targetId && targetId !== 0) return null
                         
                         const questionIndex = allQuestions && Array.isArray(allQuestions) ? 
                           allQuestions.findIndex(q => {
-                            const qId = q?.id || q?.Id
+                            if (!q) return false
+                            const qId = q.id || q.Id
                             return qId === targetId
                           }) : -1
                         
                         return (
                           <option key={targetId} value={targetId}>
-                            Question {questionIndex + 1}: {targetTitle}
+                            Question {questionIndex >= 0 ? questionIndex + 1 : '?'}: {targetTitle}
                           </option>
                         )
                       }).filter(Boolean) : null}
