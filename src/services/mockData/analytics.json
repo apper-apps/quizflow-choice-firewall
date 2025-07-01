@@ -1,0 +1,64 @@
+{
+  "analytics": [
+    {
+      "Id": 1,
+      "title": "What's Your Marketing Style?",
+      "questions": 3,
+      "views": 1247,
+      "completions": 892,
+      "leads": 756,
+      "status": "active",
+      "createdAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "Id": 2,
+      "title": "Brand Personality Quiz",
+      "questions": 5,
+      "views": 876,
+      "completions": 634,
+      "leads": 521,
+      "status": "active",
+      "createdAt": "2024-01-14T14:20:00Z"
+    },
+    {
+      "Id": 3,
+      "title": "Product Finder Quiz",
+      "questions": 4,
+      "views": 2103,
+      "completions": 1456,
+      "leads": 1234,
+      "status": "active",
+      "createdAt": "2024-01-12T09:15:00Z"
+    },
+    {
+      "Id": 4,
+      "title": "Customer Satisfaction Survey",
+      "questions": 6,
+      "views": 543,
+      "completions": 398,
+      "leads": 287,
+      "status": "paused",
+      "createdAt": "2024-01-10T16:45:00Z"
+    },
+    {
+      "Id": 5,
+      "title": "Fitness Assessment Quiz",
+      "questions": 7,
+      "views": 1876,
+      "completions": 1203,
+      "leads": 967,
+      "status": "active",
+      "createdAt": "2024-01-08T11:30:00Z"
+    },
+    {
+      "Id": 6,
+      "title": "Learning Style Quiz",
+      "questions": 5,
+      "views": 687,
+      "completions": 445,
+      "leads": 334,
+      "status": "active",
+      "createdAt": "2024-01-05T13:20:00Z"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "quizzes": [
+    {
+      "Id": 1,
+      "title": "What's Your Marketing Style?",
+      "description": "Discover your unique marketing approach and get personalized recommendations.",
+      "questions": [
+        {
+          "Id": 1,
+          "type": "text-list",
+          "title": "What's your primary business goal?",
+          "options": [
+            {
+              "Id": 1,
+              "text": "Increase brand awareness",
+              "value": "awareness"
+            },
+            {
+              "Id": 2,
+              "text": "Generate more leads",
+              "value": "leads"
+            },
+            {
+              "Id": 3,
+              "text": "Boost sales revenue",
+              "value": "sales"
+            },
+            {
+              "Id": 4,
+              "text": "Build customer loyalty",
+              "value": "loyalty"
+            }
+          ],
+          "required": true,
+          "order": 0
+        },
+        {
+          "Id": 2,
+          "type": "image-list",
+          "title": "Which social media platform resonates with you most?",
+          "options": [
+            {
+              "Id": 5,
+              "text": "Facebook",
+              "imageUrl": "",
+              "value": "facebook"
+            },
+            {
+              "Id": 6,
+              "text": "Instagram",
+              "imageUrl": "",
+              "value": "instagram"
+            },
+            {
+              "Id": 7,
+              "text": "LinkedIn",
+              "imageUrl": "",
+              "value": "linkedin"
+            },
+            {
+              "Id": 8,
+              "text": "TikTok",
+              "imageUrl": "",
+              "value": "tiktok"
+            }
+          ],
+          "required": true,
+          "order": 1
+        },
+        {
+          "Id": 3,
+          "type": "contact-fields",
+          "title": "Get your personalized marketing strategy!",
+          "options": [],
+          "required": true,
+          "order": 2
+        }
+      ],
+      "settings": {
+        "progressType": "bar",
+        "progressColor": "primary",
+        "mobileOnly": true,
+        "cookieTracking": true
+      },
+      "createdAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "Id": 2,
+      "title": "Brand Personality Quiz",
+      "description": "Find out which brand archetype matches your business personality.",
+      "questions": [
+        {
+          "Id": 4,
+          "type": "image-matrix",
+          "title": "Which images best represent your brand?",
+          "options": [
+            {
+              "Id": 9,
+              "text": "Innovation",
+              "imageUrl": "",
+              "value": "innovation"
+            },
+            {
+              "Id": 10,
+              "text": "Trust",
+              "imageUrl": "",
+              "value": "trust"
+            },
+            {
+              "Id": 11,
+              "text": "Adventure",
+              "imageUrl": "",
+              "value": "adventure"
+            },
+            {
+              "Id": 12,
+              "text": "Elegance",
+              "imageUrl": "",
+              "value": "elegance"
+            }
+          ],
+          "required": true,
+          "order": 0
+        }
+      ],
+      "settings": {
+        "progressType": "circular",
+        "progressColor": "accent",
+        "mobileOnly": true,
+        "cookieTracking": false
+      },
+      "createdAt": "2024-01-14T14:20:00Z"
+    }
+  ]
+}

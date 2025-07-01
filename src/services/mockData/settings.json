@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "companyName": "QuizFlow Pro",
+    "defaultQuizTitle": "Untitled Quiz",
+    "contactEmail": "contact@quizflowpro.com",
+    "websiteUrl": "https://quizflowpro.com",
+    "defaultProgressType": "bar",
+    "defaultProgressColor": "primary",
+    "defaultMobileOnly": true,
+    "defaultCookieTracking": true,
+    "facebookPixelId": "",
+    "googleAnalyticsId": "",
+    "webhookUrl": "",
+    "apiKey": "",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}

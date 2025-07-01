@@ -1,0 +1,287 @@
+{
+  "templates": [
+    {
+      "Id": 1,
+      "title": "Lead Generation Quiz",
+      "description": "Perfect for capturing high-quality leads with engaging questions.",
+      "category": "lead-gen",
+      "featured": true,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 1,
+          "type": "text-list",
+          "title": "What's your biggest challenge right now?",
+          "options": [
+            {
+              "Id": 1,
+              "text": "Generating quality leads",
+              "value": "leads"
+            },
+            {
+              "Id": 2,
+              "text": "Converting visitors to customers",
+              "value": "conversion"
+            },
+            {
+              "Id": 3,
+              "text": "Increasing website traffic",
+              "value": "traffic"
+            }
+          ],
+          "required": true,
+          "order": 0
+        },
+        {
+          "Id": 2,
+          "type": "contact-fields",
+          "title": "Get your free strategy session!",
+          "options": [],
+          "required": true,
+          "order": 1
+        }
+      ],
+      "settings": {
+        "progressType": "bar",
+        "progressColor": "primary",
+        "mobileOnly": true,
+        "cookieTracking": true
+      }
+    },
+    {
+      "Id": 2,
+      "title": "Personality Assessment",
+      "description": "Help users discover their personality type with fun, engaging questions.",
+      "category": "personality",
+      "featured": false,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 3,
+          "type": "image-list",
+          "title": "Choose the activity that appeals to you most:",
+          "options": [
+            {
+              "Id": 4,
+              "text": "Reading a book",
+              "imageUrl": "",
+              "value": "reading"
+            },
+            {
+              "Id": 5,
+              "text": "Attending a party",
+              "imageUrl": "",
+              "value": "party"
+            },
+            {
+              "Id": 6,
+              "text": "Going for a hike",
+              "imageUrl": "",
+              "value": "hiking"
+            }
+          ],
+          "required": true,
+          "order": 0
+        }
+      ],
+      "settings": {
+        "progressType": "circular",
+        "progressColor": "secondary",
+        "mobileOnly": true,
+        "cookieTracking": false
+      }
+    },
+    {
+      "Id": 3,
+      "title": "Product Recommendation Quiz",
+      "description": "Guide customers to the perfect product with targeted questions.",
+      "category": "assessment",
+      "featured": true,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 7,
+          "type": "image-matrix",
+          "title": "What style appeals to you most?",
+          "options": [
+            {
+              "Id": 7,
+              "text": "Modern",
+              "imageUrl": "",
+              "value": "modern"
+            },
+            {
+              "Id": 8,
+              "text": "Classic",
+              "imageUrl": "",
+              "value": "classic"
+            },
+            {
+              "Id": 9,
+              "text": "Rustic",
+              "imageUrl": "",
+              "value": "rustic"
+            },
+            {
+              "Id": 10,
+              "text": "Minimalist",
+              "imageUrl": "",
+              "value": "minimalist"
+            }
+          ],
+          "required": true,
+          "order": 0
+        }
+      ],
+      "settings": {
+        "progressType": "bar",
+        "progressColor": "accent",
+        "mobileOnly": true,
+        "cookieTracking": true
+      }
+    },
+    {
+      "Id": 4,
+      "title": "Customer Feedback Survey",
+      "description": "Collect valuable feedback from your customers in an engaging format.",
+      "category": "feedback",
+      "featured": false,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 8,
+          "type": "text-list",
+          "title": "How satisfied are you with our service?",
+          "options": [
+            {
+              "Id": 11,
+              "text": "Very satisfied",
+              "value": "very-satisfied"
+            },
+            {
+              "Id": 12,
+              "text": "Satisfied",
+              "value": "satisfied"
+            },
+            {
+              "Id": 13,
+              "text": "Neutral",
+              "value": "neutral"
+            },
+            {
+              "Id": 14,
+              "text": "Dissatisfied",
+              "value": "dissatisfied"
+            }
+          ],
+          "required": true,
+          "order": 0
+        },
+        {
+          "Id": 9,
+          "type": "text-field",
+          "title": "What can we improve?",
+          "options": [],
+          "required": false,
+          "order": 1
+        }
+      ],
+      "settings": {
+        "progressType": "bar",
+        "progressColor": "success",
+        "mobileOnly": true,
+        "cookieTracking": false
+      }
+    },
+    {
+      "Id": 5,
+      "title": "Market Research Survey",
+      "description": "Gather insights about your target market with comprehensive questions.",
+      "category": "survey",
+      "featured": false,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 10,
+          "type": "text-list",
+          "title": "What's your age group?",
+          "options": [
+            {
+              "Id": 15,
+              "text": "18-25",
+              "value": "18-25"
+            },
+            {
+              "Id": 16,
+              "text": "26-35",
+              "value": "26-35"
+            },
+            {
+              "Id": 17,
+              "text": "36-45",
+              "value": "36-45"
+            },
+            {
+              "Id": 18,
+              "text": "46+",
+              "value": "46+"
+            }
+          ],
+          "required": true,
+          "order": 0
+        }
+      ],
+      "settings": {
+        "progressType": "bar",
+        "progressColor": "primary",
+        "mobileOnly": true,
+        "cookieTracking": true
+      }
+    },
+    {
+      "Id": 6,
+      "title": "Skills Assessment Quiz",
+      "description": "Help users evaluate their skills and identify areas for improvement.",
+      "category": "assessment",
+      "featured": false,
+      "previewImage": "",
+      "questions": [
+        {
+          "Id": 11,
+          "type": "text-list",
+          "title": "How would you rate your current skill level?",
+          "options": [
+            {
+              "Id": 19,
+              "text": "Beginner",
+              "value": "beginner"
+            },
+            {
+              "Id": 20,
+              "text": "Intermediate",
+              "value": "intermediate"
+            },
+            {
+              "Id": 21,
+              "text": "Advanced",
+              "value": "advanced"
+            },
+            {
+              "Id": 22,
+              "text": "Expert",
+              "value": "expert"
+            }
+          ],
+          "required": true,
+          "order": 0
+        }
+      ],
+      "settings": {
+        "progressType": "circular",
+        "progressColor": "secondary",
+        "mobileOnly": true,
+        "cookieTracking": false
+      }
+    }
+  ]
+}
