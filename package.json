@@ -8,8 +8,8 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
-  },
-"dependencies": {
+},
+  "dependencies": {
     "@reduxjs/toolkit": "^2.7.0",
     "@xyflow/react": "^12.3.1",
     "apexcharts": "^4.7.0",

@@ -1,9 +1,11 @@
+import '@xyflow/react/dist/style.css'
 import React, { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { Background, Controls, MarkerType, MiniMap, ReactFlow, addEdge, useEdgesState, useNodesState } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import ApperIcon from "@/components/ApperIcon";
+import Builder from "@/components/pages/Builder";
+import Settings from "@/components/pages/Settings";
 import Card from "@/components/atoms/Card";
 import Input from "@/components/atoms/Input";
 import Button from "@/components/atoms/Button";
@@ -476,8 +478,11 @@ const QuizBuilder = ({ quizId }) => {
   const [branchingQuestionId, setBranchingQuestionId] = useState(null)
   const [previewResponses, setPreviewResponses] = useState({})
   const [currentPreviewQuestion, setCurrentPreviewQuestion] = useState(0)
+  
+  // React Flow hooks for mindmap view
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  // Load quiz data
   useEffect(() => {
     if (quizId) {
       loadQuiz()
@@ -494,10 +499,9 @@ const loadQuiz = async () => {
       if (quizId && quizId !== 'new') {
         const data = await quizService.getById(quizId)
         if (data) {
-          const firstQuestion = data.questions?.[0]
-          const questionId = firstQuestion?.id || firstQuestion?.Id
-          if (questionId && (typeof questionId === 'string' || typeof questionId === 'number')) {
-            setSelectedQuestionId(questionId)
+          if (data.questions?.length > 0) {
+            // Default to first question
+            setSelectedQuestionId(data.questions[0]?.id)
           }
           setQuiz(data)
         } else {
@@ -506,10 +510,9 @@ const loadQuiz = async () => {
       } else {
         await createNewQuiz()
       }
-    } catch (error) {
-      console.error('Failed to load quiz:', error)
+    } catch (err) {
+      setError(err.message || 'Failed to load quiz')
       toast.error('Failed to load quiz')
-      setError('Failed to load quiz')
     } finally {
       setLoading(false)
     }
@@ -575,14 +578,16 @@ const addQuestion = useCallback(async (type) => {
         id: `q_${Date.now()}`
       }
 
-      const updatedQuestions = [...(quiz.questions || []), newQuestion]
-      
+const updatedQuestions = [...(quiz.questions || []), newQuestion]
+      const updatedQuiz = { ...quiz, questions: updatedQuestions }
       await updateQuiz({ questions: updatedQuestions })
       
-      // Select the new question
-      setSelectedQuestionId(newQuestion.id)
-    } catch (error) {
-      console.error('Failed to add question:', error)
+      // Select the new question if it was created successfully
+      if (newQuestion?.id) {
+        setSelectedQuestionId(newQuestion.id)
+      }
+      setShowQuestionTypes(false)
+    } catch (err) {
       toast.error('Failed to add question')
     }
   }, [quiz, updateQuiz])
@@ -625,15 +630,13 @@ const deleteQuestion = async (questionId) => {
         const qId = q?.Id || q?.id
         return qId !== questionId
       })
-      await updateQuiz({ questions: updatedQuestions })
+await updateQuiz({ questions: updatedQuestions })
       
-      if (updatedQuestions?.length > 0) {
-        const firstQuestion = updatedQuestions[0]
-        if (firstQuestion) {
-          const firstId = firstQuestion.id || firstQuestion.Id
-          setSelectedQuestionId(firstId || null)
-        } else {
-          setSelectedQuestionId(null)
+      if (updatedQuestions.length > 0) {
+        // If we deleted the currently selected question, clear selection or select first available
+        if (selectedQuestionId === questionId) {
+          const firstAvailable = updatedQuestions[0]?.id
+          setSelectedQuestionId(firstAvailable || null)
         }
       } else {
         setSelectedQuestionId(null)
@@ -809,7 +812,7 @@ const renderCurrentView = () => {
           onAddQuestion={() => setShowQuestionTypes(true)}
           onBranchingConfig={openBranchingModal}
         />;
-      case 'mindmap':
+case 'mindmap':
         return <MindmapView 
           nodes={nodes}
           edges={edges}
@@ -847,7 +850,6 @@ const renderCurrentView = () => {
         />
     }
   }
-
   return (
     <div className="h-screen bg-slate-50">
       {/* Header with View Switcher */}
@@ -941,12 +943,13 @@ className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto
                   q && ((q.id || q.Id) === branchingQuestionId)
                 ) || null}
                 allQuestions={quiz?.questions || []}
-                onSave={(questionId, branchingRules) => updateBranching(questionId, branchingRules)}
-                onClose={() => setBranchingQuestionId(null)}
-                isOpen={!!branchingQuestionId}
+                onSave={updateBranching}
+                onClose={() => {
+                  setShowBranchingModal(false)
+                  setBranchingQuestionId(null)
+                }}
               />
             </motion.div>
-          </motion.div>
         )}
       </AnimatePresence>
     </div>
