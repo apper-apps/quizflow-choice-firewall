@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { toast } from 'react-toastify'
-import { ReactFlow, Background, Controls, MarkerType, MiniMap, addEdge, useEdgesState, useNodesState } from '@xyflow/react'
-import ApperIcon from '@/components/ApperIcon'
-import Builder from '@/components/pages/Builder'
-import Settings from '@/components/pages/Settings'
+import React, { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "react-toastify";
+import { Background, Controls, MarkerType, MiniMap, ReactFlow, addEdge, useEdgesState, useNodesState } from "@xyflow/react";
+import ApperIcon from "@/components/ApperIcon";
+import Builder from "@/components/pages/Builder";
+import Settings from "@/components/pages/Settings";
 import Card from "@/components/atoms/Card";
 import Input from "@/components/atoms/Input";
 import Button from "@/components/atoms/Button";
@@ -37,17 +37,26 @@ const QuizBuilder = ({ quizId }) => {
     }
   }, [quizId])
 
-  const loadQuiz = async () => {
+const loadQuiz = async () => {
     try {
       setLoading(true)
-      setError('')
+      setError(null)
       const data = await quizService.getById(parseInt(quizId))
+      
+      if (!data) {
+        throw new Error('Quiz not found')
+      }
+      
       setQuiz(data)
       if (data.questions?.length > 0) {
-        setSelectedQuestionId(data.questions[0].Id)
+        const firstQuestion = data.questions[0]
+        const questionId = firstQuestion?.Id || firstQuestion?.id
+        if (questionId) {
+          setSelectedQuestionId(questionId)
+        }
       }
     } catch (err) {
-      setError('Failed to load quiz')
+      setError(err.message || 'Failed to load quiz')
       console.error('Error loading quiz:', err)
     } finally {
       setLoading(false)
@@ -124,28 +133,53 @@ const addQuestion = async (type) => {
 
   const updateQuestion = async (questionId, updates) => {
     try {
-      const updatedQuestions = quiz.questions.map(q => 
-        q.Id === questionId ? { ...q, ...updates } : q
-      )
-      await updateQuiz({ questions: updatedQuestions })
+      setLoading(true)
+      
+      if (!quiz?.questions || !Array.isArray(quiz.questions)) {
+        throw new Error('Invalid quiz data')
+      }
+      
+      const updatedQuestions = quiz.questions.map(q => {
+        const qId = q?.Id || q?.id
+        return qId === questionId ? { ...q, ...updates } : q
+      })
+      const updatedQuiz = { ...quiz, questions: updatedQuestions }
+      
+      await quizService.update(quiz.id, updatedQuiz)
+      setQuiz(updatedQuiz)
+      toast.success('Question updated successfully')
     } catch (err) {
       toast.error('Failed to update question')
       console.error('Error updating question:', err)
+    } finally {
+      setLoading(false)
     }
   }
-
-  const deleteQuestion = async (questionId) => {
+const deleteQuestion = async (questionId) => {
     try {
-      const updatedQuestions = quiz.questions.filter(q => q.Id !== questionId)
+      if (!quiz?.questions || !Array.isArray(quiz.questions)) {
+        throw new Error('Invalid quiz data')
+      }
+      
+      const updatedQuestions = quiz.questions.filter(q => {
+        const qId = q?.Id || q?.id
+        return qId !== questionId
+      })
       await updateQuiz({ questions: updatedQuestions })
       
       if (selectedQuestionId === questionId) {
-        setSelectedQuestionId(updatedQuestions.length > 0 ? updatedQuestions[0].Id : null)
+        if (updatedQuestions.length > 0) {
+          const firstQuestion = updatedQuestions[0]
+          const firstId = firstQuestion?.Id || firstQuestion?.id
+          setSelectedQuestionId(firstId || null)
+        } else {
+          setSelectedQuestionId(null)
+        }
       }
       
-toast.success('Question deleted')
+      toast.success('Question deleted successfully')
     } catch (err) {
-      toast.error('Failed to delete question')
+      setError('Failed to delete question')
       console.error('Error deleting question:', err)
     }
   }
@@ -167,71 +201,97 @@ const openBranchingModal = (questionId) => {
     }
   }
 
-  const handlePreviewResponse = (questionId, response) => {
+const handlePreviewResponse = (questionId, response) => {
     setPreviewResponses(prev => ({
       ...prev,
       [questionId]: response
     }))
   }
-  const selectedQuestion = quiz?.questions?.find(q => q.Id === selectedQuestionId)
 
-  if (loading) return <Loading type="quiz-builder" />
-  if (error) return <Error message={error} onRetry={quizId ? loadQuiz : createNewQuiz} />
-  if (!quiz) return <Error message="Quiz not found" />
+  const selectedQuestion = quiz?.questions?.find(q => {
+    const qId = q?.Id || q?.id
+    return qId === selectedQuestionId
+  })
 
 const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
-  // Generate mindmap nodes and edges from questions
+  // Error handling
+  if (loading) return <Loading />
+  if (error) return <Error message={error} onRetry={quizId ? loadQuiz : createNewQuiz} />
+  if (!quiz) return <Error message="Quiz not found" />
+// Generate nodes and edges for mindmap view
   useEffect(() => {
-    if (!quiz?.questions || viewMode !== 'mindmap') return;
+    if (!quiz?.questions || !Array.isArray(quiz.questions)) {
+      setNodes([])
+      setEdges([])
+      return
+    }
 
-    const generatedNodes = quiz.questions.map((question, index) => ({
-      id: question.Id.toString(),
-      type: 'default',
-      position: { 
-        x: (index % 3) * 300 + 100, 
-        y: Math.floor(index / 3) * 150 + 100 
-      },
-      data: { 
-        label: (
-          <div className="p-3">
-            <div className="font-semibold text-sm mb-1">Q{index + 1}</div>
-            <div className="text-xs text-slate-600 truncate w-32">
-              {question.title}
-            </div>
-          </div>
-        )
-      },
-      style: {
-        background: selectedQuestionId === question.Id ? '#3b82f6' : '#ffffff',
-        color: selectedQuestionId === question.Id ? '#ffffff' : '#1e293b',
-        border: '2px solid #e2e8f0',
-        borderRadius: '8px',
-        width: 200,
-        fontSize: '12px'
+    const generatedNodes = quiz.questions.map((question, index) => {
+      const questionId = question?.Id || question?.id
+      const questionTitle = question?.title || 'Untitled Question'
+      
+      if (!questionId) {
+        console.warn('Question missing ID:', question)
+        return null
       }
-    }));
+
+      return {
+        id: questionId.toString(),
+        type: 'default',
+        position: { 
+          x: (index % 3) * 300 + 100, 
+          y: Math.floor(index / 3) * 150 + 100 
+        },
+        data: { 
+          label: (
+            <div className="p-3">
+              <div className="font-semibold text-sm mb-1">Q{index + 1}</div>
+              <div className="text-xs text-slate-600 truncate w-32">
+                {questionTitle}
+              </div>
+            </div>
+          )
+        },
+        style: {
+          background: selectedQuestionId === questionId ? '#3b82f6' : '#ffffff',
+          color: selectedQuestionId === questionId ? '#ffffff' : '#1e293b',
+          border: '2px solid #e2e8f0',
+          borderRadius: '8px',
+          width: 200,
+          fontSize: '12px'
+        }
+      }
+    }).filter(Boolean)
 
     const generatedEdges = [];
     quiz.questions.forEach((question, index) => {
+      const questionId = question?.Id || question?.id
+      if (!questionId) return
+
       if (index < quiz.questions.length - 1) {
-        generatedEdges.push({
-          id: `e${question.Id}-${quiz.questions[index + 1].Id}`,
-          source: question.Id.toString(),
-          target: quiz.questions[index + 1].Id.toString(),
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        });
+        const nextQuestion = quiz.questions[index + 1]
+        const nextQuestionId = nextQuestion?.Id || nextQuestion?.id
+        
+        if (nextQuestionId) {
+          generatedEdges.push({
+            id: `e${questionId}-${nextQuestionId}`,
+            source: questionId.toString(),
+            target: nextQuestionId.toString(),
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+          });
+        }
       }
       
       // Add branching edges
-      if (question.branching) {
+      if (question.branching && typeof question.branching === 'object') {
         Object.entries(question.branching).forEach(([optionId, targetId]) => {
-          if (targetId && targetId !== 'complete') {
+          if (targetId && targetId !== 'complete' && targetId !== questionId) {
             generatedEdges.push({
-              id: `e${question.Id}-${targetId}-branch`,
-              source: question.Id.toString(),
+              id: `e${questionId}-${targetId}-branch`,
+              source: questionId.toString(),
               target: targetId.toString(),
               markerEnd: {
                 type: MarkerType.ArrowClosed,
@@ -266,9 +326,17 @@ const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={(event, node) => setSelectedQuestionId(parseInt(node.id))}
+          onNodeClick={(event, node) => {
+            const nodeId = node?.id
+            if (nodeId) {
+              const parsedId = parseInt(nodeId)
+              if (!isNaN(parsedId)) {
+                setSelectedQuestionId(parsedId)
+              }
+            }
+          }}
           onAddQuestion={() => setShowQuestionTypes(true)}
-        />;
+        />
       default:
         return <PanelView 
           quiz={quiz}
@@ -697,21 +765,21 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
 
   const availableTargets = allQuestions.filter(q => q.Id !== question?.Id)
 
-  const handleRuleChange = (optionId, targetQuestionId) => {
+const handleRuleChange = (optionId, targetQuestionId) => {
+    if (!optionId) return
+    
     setBranchingRules(prev => ({
       ...prev,
-      [optionId]: targetQuestionId ? parseInt(targetQuestionId) : null
+      [optionId]: targetQuestionId ? (isNaN(parseInt(targetQuestionId)) ? null : parseInt(targetQuestionId)) : null
     }))
   }
 
   const handleSave = () => {
-    // Remove null values
     const cleanRules = Object.fromEntries(
-      Object.entries(branchingRules).filter(([_, value]) => value !== null)
+      Object.entries(branchingRules).filter(([key, value]) => value !== null && value !== '')
     )
     onSave(cleanRules)
   }
-
   if (!question || !question.options || question.options.length === 0) {
     return (
       <div className="text-center py-8">
@@ -750,33 +818,55 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
 
       <div className="space-y-4 mb-6">
         <div className="bg-slate-50 rounded-lg p-4">
-          <h4 className="font-semibold text-slate-900 mb-3">Branching Rules</h4>
-          <div className="space-y-3">
-{question?.options?.map((option) => (
-              <div key={option?.id || option?.Id || Math.random()} className="flex items-center space-x-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
-                    If user selects: "{option?.text || 'Untitled option'}"
-                  </p>
+<div className="space-y-4">
+            <h4 className="text-sm font-medium text-slate-900">Branching Rules</h4>
+            {question?.options && Array.isArray(question.options) ? question.options.map((option) => {
+              const optionId = option?.id || option?.Id
+              const optionText = option?.text || 'Untitled option'
+              
+              if (!optionId) return null
+              
+              return (
+                <div key={optionId} className="flex items-center space-x-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      If user selects: "{optionText}"
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-slate-600">Go to:</span>
+                    <select
+                      value={branchingRules?.[optionId] || ''}
+                      onChange={(e) => handleRuleChange(optionId, e.target.value)}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="">Next question (default)</option>
+                      {availableTargets && Array.isArray(availableTargets) ? availableTargets.map((target) => {
+                        const targetId = target?.id || target?.Id
+                        const targetTitle = target?.title || 'Untitled'
+                        
+                        if (!targetId) return null
+                        
+                        const questionIndex = allQuestions && Array.isArray(allQuestions) ? 
+                          allQuestions.findIndex(q => {
+                            const qId = q?.id || q?.Id
+                            return qId === targetId
+                          }) : -1
+                        
+                        return (
+                          <option key={targetId} value={targetId}>
+                            Question {questionIndex + 1}: {targetTitle}
+                          </option>
+                        )
+                      }).filter(Boolean) : null}
+                      <option value="complete">Complete quiz</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-slate-600">Go to:</span>
-                  <select
-                    value={branchingRules?.[option?.id || option?.Id] || ''}
-                    onChange={(e) => handleRuleChange(option?.id || option?.Id, e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Next question (default)</option>
-                    {availableTargets?.map((target) => (
-                      <option key={target?.id || target?.Id || Math.random()} value={target?.id || target?.Id}>
-                        Question {(allQuestions?.findIndex(q => (q?.id || q?.Id) === (target?.id || target?.Id)) + 1) || 0}: {target?.title || 'Untitled'}
-                      </option>
-                    )) || null}
-                    <option value="complete">Complete quiz</option>
-                  </select>
-                </div>
-              </div>
-            ))}
+              )
+            }).filter(Boolean) : (
+              <p className="text-sm text-slate-500">No options available for branching</p>
+            )}
           </div>
         </div>
 
@@ -800,9 +890,9 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSave}>
+<Button variant="primary" onClick={handleSave}>
           Save Branching Rules
-</Button>
+        </Button>
       </div>
     </div>
   )
