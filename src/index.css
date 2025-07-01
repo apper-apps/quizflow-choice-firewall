@@ -5,9 +5,9 @@
 @import 'react-toastify/dist/ReactToastify.css';
 @layer base {
   * {
-    @apply border-border;
+    @apply border-gray-200;
   }
-  body {
+}
     @apply bg-white text-slate-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }

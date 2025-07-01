@@ -10,7 +10,7 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       },
-      colors: {
+colors: {
         primary: {
           50: '#EEF2FF',
           100: '#E0E7FF',
@@ -32,6 +32,10 @@ export default {
           600: '#DB2777',
           700: '#BE185D',
         },
+        border: '#E5E7EB',
+        background: '#FFFFFF',
+        foreground: '#111827',
+        muted: '#F9FAFB',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
