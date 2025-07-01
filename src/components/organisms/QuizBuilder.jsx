@@ -136,13 +136,14 @@ const addQuestion = async (type) => {
       }
       
       toast.success('Question deleted')
+toast.success('Question deleted')
     } catch (err) {
       toast.error('Failed to delete question')
-console.error('Error deleting question:', err)
+      console.error('Error deleting question:', err)
     }
   }
+  
   const openBranchingModal = (questionId) => {
-    setBranchingQuestionId(questionId)
     setShowBranchingModal(true)
   }
 
@@ -346,9 +347,8 @@ console.error('Error deleting question:', err)
             currentQuestion={currentPreviewQuestion}
             responses={previewResponses}
             onResponse={handlePreviewResponse}
-          />
+/>
         </div>
-</div>
       </div>
     </div>
   )
@@ -467,7 +467,8 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
           Save Branching Rules
         </Button>
       </div>
-    </div>
+</div>
   )
+}
 
 export default QuizBuilder
