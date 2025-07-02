@@ -16,7 +16,6 @@ import Error from "@/components/ui/Error";
 import Empty from "@/components/ui/Empty";
 import Loading from "@/components/ui/Loading";
 import { quizService } from "@/services/api/quizService";
-
 // View Switcher Component
 const ViewSwitcher = ({ currentView, onViewChange }) => (
   <div className="flex bg-slate-100 rounded-lg p-1">
@@ -483,13 +482,13 @@ const QuizBuilder = ({ quizId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   // Load quiz data
-  useEffect(() => {
+useEffect(() => {
     if (quizId) {
       loadQuiz()
     } else {
       createNewQuiz()
     }
-  }, [quizId])
+  }, [quizId]) // Added proper dependency array
 
 const loadQuiz = async () => {
     try {
@@ -500,7 +499,7 @@ const loadQuiz = async () => {
         const data = await quizService.getById(quizId)
         if (data) {
           if (data.questions?.length > 0) {
-            // Default to first question
+            // Default to first question - standardized ID access
             setSelectedQuestionId(data.questions[0]?.id)
           }
           setQuiz(data)
@@ -511,16 +510,18 @@ const loadQuiz = async () => {
         await createNewQuiz()
       }
     } catch (err) {
-      setError(err.message || 'Failed to load quiz')
+      setError(err?.message || 'Failed to load quiz')
       toast.error('Failed to load quiz')
+      console.error('Load quiz error:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const createNewQuiz = async () => {
+const createNewQuiz = async () => {
     try {
       setLoading(true)
+      setError(null)
       const newQuiz = {
         title: 'Untitled Quiz',
         description: '',
@@ -535,7 +536,8 @@ const loadQuiz = async () => {
       const data = await quizService.create(newQuiz)
       setQuiz(data)
     } catch (err) {
-      setError('Failed to create quiz')
+      setError(err?.message || 'Failed to create quiz')
+      toast.error('Failed to create quiz')
       console.error('Error creating quiz:', err)
     } finally {
       setLoading(false)
@@ -579,7 +581,6 @@ const addQuestion = useCallback(async (type) => {
       }
 
 const updatedQuestions = [...(quiz.questions || []), newQuestion]
-      const updatedQuiz = { ...quiz, questions: updatedQuestions }
       await updateQuiz({ questions: updatedQuestions })
       
       // Select the new question if it was created successfully
@@ -601,21 +602,16 @@ const updateQuestion = async (questionId, updates) => {
       }
       
       const updatedQuestions = quiz.questions.map(q => {
-        const qId = q?.Id || q?.id
-        return qId === questionId ? { ...q, ...updates } : q
+        // Standardized ID access pattern
+        return q?.id === questionId ? { ...q, ...updates } : q
       })
       
-      const updatedQuiz = { ...quiz, questions: updatedQuestions }
-      
-      const quizId = quiz.id || quiz.Id
-      if (!quizId) {
-        throw new Error('Quiz ID is missing')
-      }
-      await quizService.update(quizId, updatedQuiz)
-      setQuiz(updatedQuiz)
+      await updateQuiz({ questions: updatedQuestions })
     } catch (err) {
+      setError(err?.message || 'Failed to update question')
       toast.error('Failed to update question')
       console.error('Error updating question:', err)
+      throw err
     } finally {
       setLoading(false)
     }
@@ -627,10 +623,11 @@ const deleteQuestion = async (questionId) => {
       }
       
       const updatedQuestions = quiz.questions.filter(q => {
-        const qId = q?.Id || q?.id
-        return qId !== questionId
+        // Standardized ID access pattern
+        return q?.id !== questionId
       })
-await updateQuiz({ questions: updatedQuestions })
+      
+      await updateQuiz({ questions: updatedQuestions })
       
       if (updatedQuestions.length > 0) {
         // If we deleted the currently selected question, clear selection or select first available
@@ -642,7 +639,8 @@ await updateQuiz({ questions: updatedQuestions })
         setSelectedQuestionId(null)
       }
     } catch (err) {
-      setError('Failed to delete question')
+      setError(err?.message || 'Failed to delete question')
+      toast.error('Failed to delete question')
       console.error('Error deleting question:', err)
     }
   }
@@ -650,25 +648,36 @@ await updateQuiz({ questions: updatedQuestions })
 const openBranchingModal = (questionId) => {
     if (!questionId) {
       console.warn('Cannot open branching modal: missing question ID')
+      setError('Cannot open branching modal: missing question ID')
       return
     }
     setBranchingQuestionId(questionId)
     setShowBranchingModal(true)
   }
 
-  const updateBranching = async (questionId, branchingRules) => {
+const updateBranching = async (questionId, branchingRules) => {
     try {
+      if (!questionId) {
+        throw new Error('Question ID is required')
+      }
+      
       await updateQuestion(questionId, { branching: branchingRules })
       setShowBranchingModal(false)
       setBranchingQuestionId(null)
       toast.success('Branching rules updated')
     } catch (err) {
+      setError(err?.message || 'Failed to update branching rules')
       toast.error('Failed to update branching rules')
       console.error('Error updating branching:', err)
     }
   }
 
 const handlePreviewResponse = (questionId, response) => {
+    if (!questionId) {
+      console.warn('Cannot handle preview response: missing question ID')
+      return
+    }
+    
     setPreviewResponses(prev => ({
       ...prev,
       [questionId]: response
