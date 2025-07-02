@@ -65,7 +65,7 @@ const BranchingModal = ({ question, allQuestions, onSave, onClose }) => {
     return qId && qId !== questionId
   }) || []
 
-  const handleRuleChange = (optionId, targetQuestionId) => {
+const handleRuleChange = (optionId, targetQuestionId) => {
     if (!optionId && optionId !== 0) return
     
     let processedTargetId = null
@@ -496,11 +496,13 @@ const loadQuiz = async () => {
       setError(null)
       
       if (quizId && quizId !== 'new') {
-        const data = await quizService.getById(quizId)
+const data = await quizService.getById(quizId)
         if (data) {
           if (data.questions?.length > 0) {
-            // Default to first question - standardized ID access
-            setSelectedQuestionId(data.questions[0]?.id)
+            // Normalize ID access - handle both Id and id fields
+            const firstQuestion = data.questions[0]
+            const questionId = firstQuestion?.id || firstQuestion?.Id
+            setSelectedQuestionId(questionId)
           }
           setQuiz(data)
         } else {
@@ -794,7 +796,7 @@ setNodes(generatedNodes);
     setEdges(generatedEdges);
   }, [quiz?.questions, viewMode, selectedQuestionId, setNodes, setEdges]);
 
-  const onNodeClick = useCallback((event, node) => {
+const onNodeClick = useCallback((event, node) => {
     if (node?.id) {
       try {
         const nodeId = node.id

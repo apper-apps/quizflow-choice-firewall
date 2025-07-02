@@ -13,13 +13,21 @@ class QuizService {
     return [...this.quizzes]
   }
 
-  async getById(id) {
+async getById(id) {
     await delay(250)
     const quiz = this.quizzes.find(q => q.Id === id)
     if (!quiz) {
       throw new Error('Quiz not found')
     }
-    return { ...quiz }
+    // Normalize ID fields for consistent access
+    const normalizedQuiz = { ...quiz }
+    if (normalizedQuiz.questions) {
+      normalizedQuiz.questions = normalizedQuiz.questions.map(q => ({
+        ...q,
+        id: q.id || q.Id // Ensure lowercase id is available
+      }))
+    }
+    return normalizedQuiz
   }
 
   async create(quizData) {
@@ -50,16 +58,26 @@ async update(id, updates) {
       ...updates,
       updatedAt: new Date().toISOString()
     }
-    return { ...this.quizzes[index] }
+    
+    // Return normalized version for consistent ID access
+    const result = { ...this.quizzes[index] }
+    if (result.questions) {
+      result.questions = result.questions.map(q => ({
+        ...q,
+        id: q.id || q.Id
+      }))
+    }
+    return result
   }
 
-  validateBranchingRules(questions) {
-    const questionIds = new Set(questions.map(q => q.Id))
+validateBranchingRules(questions) {
+    // Handle both Id and id fields for validation
+    const questionIds = new Set(questions.map(q => q.Id || q.id))
     
     questions.forEach(question => {
       if (question.branching) {
         Object.values(question.branching).forEach(targetId => {
-          if (targetId !== 'complete' && !questionIds.has(targetId)) {
+          if (targetId !== 'complete' && targetId !== null && !questionIds.has(targetId)) {
             throw new Error(`Invalid branching target: Question ${targetId} not found`)
           }
         })
